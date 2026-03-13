@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrailTracker - Randonnée</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+        }
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        header {
+            background: linear-gradient(135deg, #16213e, #1a1a2e);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #0f3460;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #00d9ff;
+        }
+        .logo svg {
+            width: 32px;
+            height: 32px;
+        }
+        nav {
+            display: flex;
+            gap: 5px;
+        }
+        nav button {
+            background: transparent;
+            border: 1px solid #0f3460;
+            color: #aaa;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9rem;
+        }
+        nav button:hover, nav button.active {
+            background: #0f3460;
+            color: #00d9ff;
+            border-color: #00d9ff;
+        }
+        main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        .tracking-controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 1000;
+            background: rgba(26, 26, 46, 0.95);
+            padding: 15px 25px;
+            border-radius: 50px;
+            backdrop-filter: blur(10px);
+            border: 1px solid #0f3460;
+        }
+        .track-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+            font-size: 1.5rem;
+        }
+        .track-btn.start {
+            background: linear-gradient(135deg, #00d9ff, #0099cc);
+            color: white;
+        }
+        .track-btn.stop {
+            background: linear-gradient(135deg, #ff4757, #cc0022);
+            color: white;
+        }
+        .track-btn.pause {
+            background: linear-gradient(135deg, #ffa502, #cc8400);
+            color: white;
+        }
+        .track-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 20px rgba(0, 217, 255, 0.4);
+        }
+        .stats-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(26, 26, 46, 0.95);
+            padding: 20px;
+            border-radius: 15px;
+            z-index: 1000;
+            border: 1px solid #0f3460;
+            min-width: 200px;
+        }
+        .stat {
+            margin-bottom: 15px;
+        }
+        .stat:last-child {
+            margin-bottom: 0;
+        }
+        .stat-label {
+            font-size: 0.8rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #00d9ff;
+        }
+        .stat-unit {
+            font-size: 0.9rem;
+            color: #666;
+        }
+        .sidebar {
+            width: 380px;
+            background: #16213e;
+            border-left: 1px solid #0f3460;
+            overflow-y: auto;
+            display: none;
+        }
+        .sidebar.active {
+            display: block;
+        }
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid #0f3460;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sidebar-header h2 {
+            color: #00d9ff;
+            font-size: 1.2rem;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        .trail-list {
+            padding: 15px;
+        }
+        .trail-card {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid #0f3460;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .trail-card:hover {
+            border-color: #00d9ff;
+            transform: translateY(-2px);
+        }
+        .trail-card h3 {
+            color: #fff;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .trail-date {
+            font-size: 0.8rem;
+            color: #666;
+        }
+        .trail-stats {
+            display: flex;
+            gap: 15px;
+            margin: 10px 0;
+            font-size: 0.9rem;
+            color: #888;
+        }
+        .trail-stats span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .rating {
+            color: #ffd700;
+        }
+        .trail-notes {
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #0f3460;
+        }
+        .add-note-btn {
+            position: absolute;
+            bottom: 30px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #e94560, #b8304f);
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
+            transition: all 0.3s;
+        }
+        .add-note-btn:hover {
+            transform: scale(1.1);
+        }
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: #16213e;
+            border-radius: 20px;
+            padding: 30px;
+            width: 90%;
+            max-width: 500px;
+            border: 1px solid #0f3460;
+        }
+        .modal-content h2 {
+            color: #00d9ff;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px 15px;
+            border-radius: 10px;
+            border: 1px solid #0f3460;
+            background: #1a1a2e;
+            color: #fff;
+            font-size: 1rem;
+        }
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .star-rating {
+            display: flex;
+            gap: 5px;
+        }
+        .star-rating input {
+            display: none;
+        }
+        .star-rating label {
+            font-size: 2rem;
+            color: #333;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .star-rating label:hover,
+        .star-rating label:hover ~ label,
+        .star-rating input:checked ~ label {
+            color: #ffd700;
+        }
+        .star-rating {
+            flex-direction: row-reverse;
+            justify-content: flex-end;
+        }
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .btn {
+            padding: 12px 25px;
+            border-radius: 25px;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #00d9ff, #0099cc);
+            color: white;
+        }
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid #0f3460;
+            color: #aaa;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        /* Points d'intérêt */
+        .poi-marker {
+            background: #e94560;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            border: 3px solid white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        .leaflet-popup-content-wrapper {
+            background: #16213e;
+            color: #fff;
+            border-radius: 12px;
+        }
+        .leaflet-popup-tip {
+            background: #16213e;
+        }
+        .popup-content h4 {
+            color: #00d9ff;
+            margin-bottom: 8px;
+        }
+        .popup-content .rating {
+            margin: 5px 0;
+        }
+        .popup-content p {
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+        /* Partage */
+        .share-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .share-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        .share-btn.copy {
+            background: #0f3460;
+            color: #00d9ff;
+        }
+        .share-btn.twitter {
+            background: #1da1f2;
+            color: white;
+        }
+        .share-btn.whatsapp {
+            background: #25d366;
+            color: white;
+        }
+        /* Toast notifications */
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #00d9ff;
+            color: #1a1a2e;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-weight: 500;
+            z-index: 3000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                width: 100%;
+                height: 100%;
+                z-index: 1500;
+            }
+            .stats-panel {
+                top: 10px;
+                left: 10px;
+                right: 10px;
+                min-width: auto;
+            }
+            .stat-value {
+                font-size: 1.4rem;
+            }
+            nav button span {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <div class="logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+                TrailTracker
+            </div>
+            <nav>
+                <button class="active" onclick="showView('map', this)">🗺️ <span>Carte</span></button>
+                <button onclick="showView('trails', this)">🥾 <span>Mes Randos</span></button>
+                <button onclick="showView('discover', this)">🔍 <span>Découvrir</span></button>
+            </nav>
+        </header>
+        <main>
+            <div class="map-container">
+                <div id="map"></div>
+                
+                <div class="stats-panel" id="statsPanel">
+                    <div class="stat">
+                        <div class="stat-label">Distance</div>
+                        <div class="stat-value" id="distance">0.00</div>
+                        <div class="stat-unit">km</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Durée</div>
+                        <div class="stat-value" id="duration">00:00</div>
+                        <div class="stat-unit">min</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Vitesse moy.</div>
+                        <div class="stat-value" id="speed">0.0</div>
+                        <div class="stat-unit">km/h</div>
+                    </div>
+                </div>
+                <div class="tracking-controls" id="trackingControls">
+                    <button class="track-btn start" id="startBtn" onclick="startTracking()">▶</button>
+                    <button class="track-btn pause" id="pauseBtn" onclick="pauseTracking()" style="display:none;">⏸</button>
+                    <button class="track-btn stop" id="stopBtn" onclick="stopTracking()" style="display:none;">⏹</button>
+                </div>
+                <button class="add-note-btn" onclick="openNoteModal()" title="Ajouter un point d'intérêt">📍</button>
+            </div>
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <h2 id="sidebarTitle">Mes Randonnées</h2>
+                    <button class="close-btn" onclick="closeSidebar()">×</button>
+                </div>
+                <div class="trail-list" id="trailList"></div>
+            </aside>
+        </main>
+    </div>
+    <!-- Modal Sauvegarde Randonnée -->
+    <div class="modal" id="saveModal">
+        <div class="modal-content">
+            <h2>💾 Sauvegarder la randonnée</h2>
+            <div class="form-group">
+                <label>Nom de la randonnée</label>
+                <input type="text" id="trailName" placeholder="Ex: Sentier des crêtes">
+            </div>
+            <div class="form-group">
+                <label>Note globale</label>
+                <div class="star-rating">
+                    <input type="radio" name="rating" value="5" id="star5">
+                    <label for="star5">★</label>
+                    <input type="radio" name="rating" value="4" id="star4">
+                    <label for="star4">★</label>
+                    <input type="radio" name="rating" value="3" id="star3">
+                    <label for="star3">★</label>
+                    <input type="radio" name="rating" value="2" id="star2">
+                    <label for="star2">★</label>
+                    <input type="radio" name="rating" value="1" id="star1">
+                    <label for="star1">★</label>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Difficulté</label>
+                <select id="difficulty">
+                    <option value="easy">🟢 Facile</option>
+                    <option value="medium">🟡 Modéré</option>
+                    <option value="hard">🟠 Difficile</option>
+                    <option value="expert">🔴 Expert</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Notes & commentaires</label>
+                <textarea id="trailNotes" placeholder="Décrivez votre expérience..."></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('saveModal')">Annuler</button>
+                <button class="btn btn-primary" onclick="saveTrail()">Sauvegarder</button>
+            </div>
+        </div>
+    </div>
+    <!-- Modal Point d'intérêt -->
+    <div class="modal" id="poiModal">
+        <div class="modal-content">
+            <h2>📍 Ajouter un point d'intérêt</h2>
+            <div class="form-group">
+                <label>Type de point</label>
+                <select id="poiType">
+                    <option value="viewpoint">🏔️ Point de vue</option>
+                    <option value="water">💧 Point d'eau</option>
+                    <option value="rest">🪑 Aire de repos</option>
+                    <option value="danger">⚠️ Danger</option>
+                    <option value="wildlife">🦌 Faune</option>
+                    <option value="flora">🌸 Flore remarquable</option>
+                    <option value="other">📌 Autre</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Titre</label>
+                <input type="text" id="poiTitle" placeholder="Ex: Vue panoramique">
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="poiDescription" placeholder="Décrivez ce point..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Note</label>
+                <div class="star-rating">
+                    <input type="radio" name="poiRating" value="5" id="poiStar5">
+                    <label for="poiStar5">★</label>
+                    <input type="radio" name="poiRating" value="4" id="poiStar4">
+                    <label for="poiStar4">★</label>
+                    <input type="radio" name="poiRating" value="3" id="poiStar3">
+                    <label for="poiStar3">★</label>
+                    <input type="radio" name="poiRating" value="2" id="poiStar2">
+                    <label for="poiStar2">★</label>
+                    <input type="radio" name="poiRating" value="1" id="poiStar1">
+                    <label for="poiStar1">★</label>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('poiModal')">Annuler</button>
+                <button class="btn btn-primary" onclick="savePOI()">Ajouter</button>
+            </div>
+        </div>
+    </div>
+    <!-- Modal Détails Randonnée -->
+    <div class="modal" id="trailDetailModal">
+        <div class="modal-content">
+            <h2 id="detailTitle">Détails de la randonnée</h2>
+            <div id="detailContent"></div>
+            <div class="share-buttons">
+                <button class="share-btn copy" onclick="copyTrailLink()">📋 Copier</button>
+                <button class="share-btn twitter" onclick="shareTwitter()">🐦 Twitter</button>
+                <button class="share-btn whatsapp" onclick="shareWhatsApp()">💬 WhatsApp</button>
+            </div>
+            <div class="modal-actions" style="margin-top: 20px;">
+                <button class="btn btn-secondary" onclick="closeModal('trailDetailModal')">Fermer</button>
+                <button class="btn btn-primary" onclick="showOnMap()">Voir sur la carte</button>
+            </div>
+        </div>
+    </div>
+    <div class="toast" id="toast"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // State
+        let map;
+        let isTracking = false;
+        let isPaused = false;
+        let trackingPath = [];
+        let currentPolyline = null;
+        let watchId = null;
+        let startTime = null;
+        let pausedTime = 0;
+        let timerInterval = null;
+        let trails = JSON.parse(localStorage.getItem('trails')) || [];
+        let pois = JSON.parse(localStorage.getItem('pois')) || [];
+        let currentPosition = null;
+        let selectedTrail = null;
+        // POI Icons
+        const poiIcons = {
+            viewpoint: '🏔️',
+            water: '💧',
+            rest: '🪑',
+            danger: '⚠️',
+            wildlife: '🦌',
+            flora: '🌸',
+            other: '📌'
+        };
+        // Initialize map
+        function initMap() {
+            map = L.map('map').setView([46.603354, 1.888334], 6);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            // Add terrain layer option (not added by default)
+            const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenTopoMap'
+            });
+            // Try to get current position
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        currentPosition = [pos.coords.latitude, pos.coords.longitude];
+                        map.setView(currentPosition, 14);
+                        L.marker(currentPosition)
+                            .addTo(map)
+                            .bindPopup('📍 Vous êtes ici')
+                            .openPopup();
+                    },
+                    (err) => {
+                        console.log('Géolocalisation non disponible');
+                    }
+                );
+            }
+            // Load saved trails and POIs
+            loadSavedData();
+            // Click to set current position when adding POI
+            map.on('click', (e) => {
+                if (document.getElementById('poiModal').classList.contains('active')) {
+                    currentPosition = [e.latlng.lat, e.latlng.lng];
+                }
+            });
+        }
+        function loadSavedData() {
+            // Load trails
+            trails.forEach(trail => {
+                if (trail.path && trail.path.length > 0) {
+                    L.polyline(trail.path, {
+                        color: '#00d9ff',
+                        weight: 4,
+                        opacity: 0.6
+                    }).addTo(map).bindPopup(`<b>${trail.name}</b><br>${trail.distance} km`);
+                }
+            });
+            // Load POIs
+            pois.forEach(poi => {
+                addPOIMarker(poi);
+            });
+        }
+        function addPOIMarker(poi) {
+            const icon = L.divIcon({
+                className: 'poi-marker',
+                html: poiIcons[poi.type] || '📌',
+                iconSize: [30, 30]
+            });
+            L.marker(poi.position, { icon })
+                .addTo(map)
+                .bindPopup(`
+                    <div class="popup-content">
+                        <h4>${poi.title}</h4>
+                        <div class="rating">${'★'.repeat(poi.rating)}${'☆'.repeat(5-poi.rating)}</div>
+                        <p>${poi.description}</p>
+                    </div>
+                `);
+        }
+        // Tracking functions
+        function startTracking() {
+            if (!navigator.geolocation) {
+                showToast('Géolocalisation non disponible');
+                return;
+            }
+            isTracking = true;
+            isPaused = false;
+            trackingPath = [];
+            startTime = Date.now();
+            pausedTime = 0;
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('pauseBtn').style.display = 'flex';
+            document.getElementById('stopBtn').style.display = 'flex';
+            // Start timer
+            timerInterval = setInterval(updateTimer, 1000);
+            // Start GPS tracking
+            watchId = navigator.geolocation.watchPosition(
+                (pos) => {
+                    if (isPaused) return;
+                    const point = [pos.coords.latitude, pos.coords.longitude];
+                    trackingPath.push(point);
+                    currentPosition = point;
+                    // Update polyline
+                    if (currentPolyline) {
+                        map.removeLayer(currentPolyline);
+                    }
+                    currentPolyline = L.polyline(trackingPath, {
+                        color: '#e94560',
+                        weight: 5
+                    }).addTo(map);
+                    // Center map
+                    map.setView(point, map.getZoom());
+                    // Update stats
+                    updateStats();
+                },
+                (err) => {
+                    showToast('Erreur GPS: ' + err.message);
+                },
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 0,
+                    timeout: 5000
+                }
+            );
+            showToast('Tracking démarré !');
+        }
+        function pauseTracking() {
+            isPaused = !isPaused;
+            document.getElementById('pauseBtn').textContent = isPaused ? '▶' : '⏸';
+            
+            if (isPaused) {
+                pausedTime = Date.now();
+                showToast('Tracking en pause');
+            } else {
+                startTime += (Date.now() - pausedTime);
+                showToast('Tracking repris');
+            }
+        }
+        function stopTracking() {
+            isTracking = false;
+            isPaused = false;
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+            }
+            clearInterval(timerInterval);
+            document.getElementById('startBtn').style.display = 'flex';
+            document.getElementById('pauseBtn').style.display = 'none';
+            document.getElementById('stopBtn').style.display = 'none';
+            if (trackingPath.length > 1) {
+                document.getElementById('saveModal').classList.add('active');
+            } else {
+                showToast('Randonnée trop courte');
+                resetStats();
+            }
+        }
+        function updateTimer() {
+            if (isPaused) return;
+            
+            const elapsed = Date.now() - startTime;
+            const minutes = Math.floor(elapsed / 60000);
+            const seconds = Math.floor((elapsed % 60000) / 1000);
+            document.getElementById('duration').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+        function updateStats() {
+            const distance = calculateDistance(trackingPath);
+            document.getElementById('distance').textContent = distance.toFixed(2);
+            const elapsed = (Date.now() - startTime) / 3600000; // en heures
+            const speed = elapsed > 0 ? distance / elapsed : 0;
+            document.getElementById('speed').textContent = speed.toFixed(1);
+        }
+        function calculateDistance(path) {
+            let total = 0;
+            for (let i = 1; i < path.length; i++) {
+                total += getDistanceFromLatLon(
+                    path[i-1][0], path[i-1][1],
+                    path[i][0], path[i][1]
+                );
+            }
+            return total;
+        }
+        function getDistanceFromLatLon(lat1, lon1, lat2, lon2) {
+            const R = 6371; // km
+            const dLat = deg2rad(lat2 - lat1);
+            const dLon = deg2rad(lon2 - lon1);
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) * 
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+        function deg2rad(deg) {
+            return deg * (Math.PI / 180);
+        }
+        function resetStats() {
+            document.getElementById('distance').textContent = '0.00';
+            document.getElementById('duration').textContent = '00:00';
+            document.getElementById('speed').textContent = '0.0';
+            trackingPath = [];
+            if (currentPolyline) {
+                map.removeLayer(currentPolyline);
+                currentPolyline = null;
+            }
+        }
+        // Save trail
+        function saveTrail() {
+            const name = document.getElementById('trailName').value || 'Randonnée sans nom';
+            const rating = document.querySelector('input[name="rating"]:checked')?.value || 3;
+            const difficulty = document.getElementById('difficulty').value;
+            const notes = document.getElementById('trailNotes').value;
+            const trail = {
+                id: Date.now(),
+                name,
+                date: new Date().toLocaleDateString('fr-FR'),
+                path: trackingPath,
+                distance: calculateDistance(trackingPath).toFixed(2),
+                duration: document.getElementById('duration').textContent,
+                rating: parseInt(rating),
+                difficulty,
+                notes
+            };
+            trails.push(trail);
+            localStorage.setItem('trails', JSON.stringify(trails));
+            closeModal('saveModal');
+            resetStats();
+            loadSavedData();
+            showToast('Randonnée sauvegardée !');
+            // Reset form
+            document.getElementById('trailName').value = '';
+            document.getElementById('trailNotes').value = '';
+        }
+        // POI functions
+        function openNoteModal() {
+            if (currentPosition) {
+                document.getElementById('poiModal').classList.add('active');
+            } else {
+                showToast('Position GPS requise');
+            }
+        }
+        function savePOI() {
+            const type = document.getElementById('poiType').value;
+            const title = document.getElementById('poiTitle').value || 'Point d\'intérêt';
+            const description = document.getElementById('poiDescription').value;
+            const rating = document.querySelector('input[name="poiRating"]:checked')?.value || 3;
+            const poi = {
+                id: Date.now(),
+                type,
+                title,
+                description,
+                rating: parseInt(rating),
+                position: currentPosition
+            };
+            pois.push(poi);
+            localStorage.setItem('pois', JSON.stringify(pois));
+            addPOIMarker(poi);
+            closeModal('poiModal');
+            showToast('Point d\'intérêt ajouté !');
+            // Reset form
+            document.getElementById('poiTitle').value = '';
+            document.getElementById('poiDescription').value = '';
+        }
+        // View functions
+        function showView(view, btn) {
+            document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            if (view === 'map') {
+                closeSidebar();
+            } else if (view === 'trails') {
+                showTrailsList();
+            } else if (view === 'discover') {
+                showDiscoverList();
+            }
+        }
+        function showTrailsList() {
+            document.getElementById('sidebarTitle').textContent = 'Mes Randonnées';
+            const list = document.getElementById('trailList');
+            
+            if (trails.length === 0) {
+                list.innerHTML = '<p style="color: #666; text-align: center; padding: 40px;">Aucune randonnée enregistrée.<br>Commencez à tracker !</p>';
+            } else {
+                list.innerHTML = trails.map(trail => `
+                    <div class="trail-card" onclick="showTrailDetail(${trail.id})">
+                        <h3>
+                            ${trail.name}
+                            <span class="trail-date">${trail.date}</span>
+                        </h3>
+                        <div class="trail-stats">
+                            <span>📏 ${trail.distance} km</span>
+                            <span>⏱️ ${trail.duration}</span>
+                            <span class="rating">${'★'.repeat(trail.rating)}${'☆'.repeat(5-trail.rating)}</span>
+                        </div>
+                        ${trail.notes ? `<div class="trail-notes">${trail.notes.substring(0, 100)}${trail.notes.length > 100 ? '...' : ''}</div>` : ''}
+                    </div>
+                `).reverse().join('');
+            }
+            document.getElementById('sidebar').classList.add('active');
+        }
+        function showDiscoverList() {
+            document.getElementById('sidebarTitle').textContent = 'Points d\'intérêt';
+            const list = document.getElementById('trailList');
+            
+            if (pois.length === 0) {
+                list.innerHTML = '<p style="color: #666; text-align: center; padding: 40px;">Aucun point d\'intérêt.<br>Ajoutez-en pendant vos randos !</p>';
+            } else {
+                list.innerHTML = pois.map(poi => `
+                    <div class="trail-card" onclick="focusPOI(${poi.id})">
+                        <h3>
+                            ${poiIcons[poi.type]} ${poi.title}
+                        </h3>
+                        <div class="trail-stats">
+                            <span class="rating">${'★'.repeat(poi.rating)}${'☆'.repeat(5-poi.rating)}</span>
+                        </div>
+                        ${poi.description ? `<div class="trail-notes">${poi.description}</div>` : ''}
+                    </div>
+                `).reverse().join('');
+            }
+            document.getElementById('sidebar').classList.add('active');
+        }
+        function showTrailDetail(id) {
+            selectedTrail = trails.find(t => t.id === id);
+            if (!selectedTrail) return;
+            document.getElementById('detailTitle').textContent = selectedTrail.name;
+            document.getElementById('detailContent').innerHTML = `
+                <p><strong>Date:</strong> ${selectedTrail.date}</p>
+                <p><strong>Distance:</strong> ${selectedTrail.distance} km</p>
+                <p><strong>Durée:</strong> ${selectedTrail.duration}</p>
+                <p><strong>Difficulté:</strong> ${getDifficultyLabel(selectedTrail.difficulty)}</p>
+                <p><strong>Note:</strong> <span class="rating">${'★'.repeat(selectedTrail.rating)}${'☆'.repeat(5-selectedTrail.rating)}</span></p>
+                ${selectedTrail.notes ? `<p><strong>Notes:</strong> ${selectedTrail.notes}</p>` : ''}
+            `;
+            document.getElementById('trailDetailModal').classList.add('active');
+        }
+        function getDifficultyLabel(diff) {
+            const labels = {
+                easy: '🟢 Facile',
+                medium: '🟡 Modéré',
+                hard: '🟠 Difficile',
+                expert: '🔴 Expert'
+            };
+            return labels[diff] || diff;
+        }
+        function showOnMap() {
+            if (selectedTrail && selectedTrail.path.length > 0) {
+                closeModal('trailDetailModal');
+                closeSidebar();
+                
+                const bounds = L.latLngBounds(selectedTrail.path);
+                map.fitBounds(bounds, { padding: [50, 50] });
+                // Highlight the trail
+                L.polyline(selectedTrail.path, {
+                    color: '#00d9ff',
+                    weight: 6
+                }).addTo(map);
+            }
+        }
+        function focusPOI(id) {
+            const poi = pois.find(p => p.id === id);
+            if (poi) {
+                closeSidebar();
+                map.setView(poi.position, 16);
+            }
+        }
+        // Share functions
+        function copyTrailLink() {
+            if (!selectedTrail) return;
+            const text = `🥾 ${selectedTrail.name}\n📏 ${selectedTrail.distance} km\n⏱️ ${selectedTrail.duration}\n${'⭐'.repeat(selectedTrail.rating)}`;
+            navigator.clipboard.writeText(text);
+            showToast('Copié !');
+        }
+        function shareTwitter() {
+            if (!selectedTrail) return;
+            const text = encodeURIComponent(`J'ai fait une rando de ${selectedTrail.distance} km ! 🥾 ${selectedTrail.name} #TrailTracker #Randonnée`);
+            window.open('https://twitter.com/intent/tweet?text=' + text, '_blank');
+        }
+        function shareWhatsApp() {
+            if (!selectedTrail) return;
+            const text = encodeURIComponent(`🥾 J'ai fait une super rando !\n\n${selectedTrail.name}\n📏 ${selectedTrail.distance} km\n⏱️ ${selectedTrail.duration}\n${'⭐'.repeat(selectedTrail.rating)}`);
+            window.open('https://wa.me/?text=' + text, '_blank');
+        }
+        // UI helpers
+        function closeSidebar() {
+            document.getElementById('sidebar').classList.remove('active');
+        }
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        // Initialize
+        document.addEventListener('DOMContentLoaded', initMap);
+    </script>
+</body>
+</html>
